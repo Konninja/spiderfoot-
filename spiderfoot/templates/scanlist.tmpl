@@ -1,22 +1,87 @@
 <%include file="HEADER.tmpl"/>
-    <h2>Scans &nbsp;<img id="loader" src="${docroot}/static/img/loader.gif"></h2>
+<style>
+.quick-search-box {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 30px;
+    border-radius: 10px;
+    margin-bottom: 25px;
+    color: white;
+    text-align: center;
+}
+.quick-search-box h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: white;
+    font-weight: 300;
+}
+.quick-search-box .input-group {
+    max-width: 700px;
+    margin: 0 auto;
+}
+.quick-search-box input {
+    height: 48px;
+    font-size: 16px;
+    border-radius: 30px 0 0 30px !important;
+    border: none;
+    padding-left: 20px;
+}
+.quick-search-box .btn-quick-scan {
+    background: #ff6b6b;
+    color: white;
+    border: none;
+    border-radius: 0 30px 30px 0 !important;
+    padding: 0 30px;
+    font-weight: bold;
+    height: 48px;
+    font-size: 16px;
+}
+.quick-search-box .btn-quick-scan:hover {
+    background: #ee5a24;
+}
+#quickScanStatus {
+    margin-top: 15px;
+    font-size: 14px;
+}
+.alert-fade {
+    transition: opacity 0.5s ease;
+}
+</style>
+
+<h2>Scans &nbsp;<img id="loader" src="${docroot}/static/img/loader.gif"></h2>
+
+<!-- ============ QUICK SEARCH BAR ============ -->
+<div class="quick-search-box">
+    <h3><i class="glyphicon glyphicon-search"></i>&nbsp;&nbsp;Quick Scan</h3>
+    <p style="margin-bottom: 20px; opacity: 0.9;">Enter a domain, IP, email, or name to start a background scan</p>
+    <div class="input-group">
+        <input type="text" id="quickTarget" class="form-control" placeholder="e.g. example.com, 1.2.3.4, bob@example.com">
+        <span class="input-group-btn">
+            <button class="btn btn-quick-scan" type="button" id="btnQuickScan" onclick="quickScan()">
+                <i class="glyphicon glyphicon-flash"></i>&nbsp;Scan Now
+            </button>
+        </span>
+    </div>
+    <div id="quickScanStatus"></div>
+</div>
+<!-- ============ END QUICK SEARCH BAR ============ -->
+
 <div id="scancontent">
 % if newscan:
-<div class="alert alert-success">
+<div class="alert alert-success alert-fade">
  <button type="button" class="close" data-dismiss="alert">&times;</button>
  <h4>Success!</h4>
  Scan '${newscan}' has successfully been initiated. Reload this page for up-to-date status on the scan.
 </div>
 % endif
 % if rerunscans:
-<div class="alert alert-success">
+<div class="alert alert-success alert-fade">
  <button type="button" class="close" data-dismiss="alert">&times;</button>
  <h4>Success!</h4>
  Scans have successfully been re-initiated as separate instances. Reload this page for up-to-date status on the scans.
 </div>
 % endif
 % if stoppedscan and len(errors) == 0:
-<div class="alert alert-warning">
+<div class="alert alert-warning alert-fade">
  <button type="button" class="close" data-dismiss="alert">&times;</button>
  <h4>Scan aborted.</h4>
  Please allow a minute or two for the scan to cleanly shut itself down.
@@ -24,7 +89,7 @@
 % endif
 
 % if stoppedscan and len(errors) > 0:
-<div class="alert alert-warning">
+<div class="alert alert-warning alert-fade">
  <button type="button" class="close" data-dismiss="alert">&times;</button>
  <h4>Error</h4>
  Some or all of the scans could not be aborted:<br>
@@ -39,6 +104,55 @@
 
 <script type='text/javascript' src="${docroot}/static/js/spiderfoot.scanlist.js"></script>
 </div>
+
+<script type='text/javascript'>
+// Quick scan: submits to /startscan via AJAX so it runs in the background
+function quickScan() {
+    var target = document.getElementById('quickTarget').value.trim();
+    var statusDiv = document.getElementById('quickScanStatus');
+    var btn = document.getElementById('btnQuickScan');
+
+    if (!target) {
+        statusDiv.innerHTML = '<span style="color: #ffeaa7;">Please enter a scan target.</span>';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></i>&nbsp;Starting...';
+    statusDiv.innerHTML = '<span style="color: #dfe6e9;">Starting background scan...</span>';
+
+    var scanName = 'QuickScan - ' + target + ' (' + new Date().toLocaleString() + ')';
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', '${docroot}/startscan', true);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xhr.onload = function() {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="glyphicon glyphicon-flash"></i>&nbsp;Scan Now';
+
+        if (xhr.status === 200) {
+            statusDiv.innerHTML = '<span style="color: #55efc4;">Scan started successfully! Refreshing scan list...</span>';
+            setTimeout(function() { location.reload(); }, 1500);
+        } else {
+            statusDiv.innerHTML = '<span style="color: #fab1a0;">Error starting scan. Please try the New Scan page.</span>';
+        }
+    };
+    xhr.onerror = function() {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="glyphicon glyphicon-flash"></i>&nbsp;Scan Now';
+        statusDiv.innerHTML = '<span style="color: #fab1a0;">Network error. Please try again.</span>';
+    };
+
+    // Use "All" use case by default for quick scans
+    var params = 'scanname=' + encodeURIComponent(scanName) +
+                 '&scantarget=' + encodeURIComponent(target) +
+                 '&usecase=all' +
+                 '&modulelist=' +
+                 '&typelist=';
+
+    xhr.send(params);
+}
+</script>
 
 <iframe class='hidden' id='exportframe'></iframe>
 
