@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: spiderfoot
+    runtime: python
+    repo: https://github.com/Konninja/spiderfoot-
+    plan: free
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    startCommand: python sf.py -l 0.0.0.0:5001
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+    healthCheckPath: /
